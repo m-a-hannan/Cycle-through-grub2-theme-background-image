@@ -61,27 +61,31 @@ sudo nano /usr/local/bin/grub-bg-cycle.sh
 ```bash
 #!/bin/bash
 
-IMAGE_DIR="/home/YOUR_USERNAME/Pictures/GRUB-Backgrounds/1920x1080"
+IMAGE_DIR="/home/hannan/Pictures/GRUB-Backgrounds/1920x1080"
 DEST="/usr/share/grub/themes/Wuthering-jinxi/background.jpg"
 LOG_FILE="/var/log/grub-bg-cycle.log"
 STATE_FILE="/var/lib/grub-bg-index"
 
 mkdir -p "$(dirname "$STATE_FILE")"
 
-if [[ -f "$STATE_FILE" ]]; then
-    INDEX=$(<"$STATE_FILE")
-else
-    INDEX=-1
-fi
-
+# Read images into array
 mapfile -t IMAGES < <(find "$IMAGE_DIR" -type f \( -iname '*.jpg' -o -iname '*.png' \) | sort)
+NUM_IMAGES=${#IMAGES[@]}
 
-if [ ${#IMAGES[@]} -eq 0 ]; then
+if [ "$NUM_IMAGES" -eq 0 ]; then
     echo "[$(date)] No images found in $IMAGE_DIR" >> "$LOG_FILE"
     exit 1
 fi
 
-NUM_IMAGES=${#IMAGES[@]}
+# Read last index or initialize
+if [[ -f "$STATE_FILE" ]]; then
+    INDEX=$(<"$STATE_FILE")
+    [[ "$INDEX" =~ ^[0-9]+$ ]] || INDEX=-1
+else
+    INDEX=-1
+fi
+
+# Increment and loop index
 INDEX=$(( (INDEX + 1) % NUM_IMAGES ))
 echo "$INDEX" > "$STATE_FILE"
 
@@ -90,6 +94,10 @@ cp "$SELECTED_IMAGE" "$DEST"
 update-grub
 
 echo "[$(date)] Set GRUB background to: $SELECTED_IMAGE (index $INDEX)" >> "$LOG_FILE"
+
+# Optional: Keep log file to last 50 entries
+LOG_MAX=100
+tail -n "$LOG_MAX" "$LOG_FILE" > "${LOG_FILE}.tmp" && mv "${LOG_FILE}.tmp" "$LOG_FILE"
 ```
 
 > Replace `YOUR_USERNAME` in `IMAGE_DIR` with your actual username.
